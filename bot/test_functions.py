@@ -38,26 +38,30 @@ def test_instagram_login():
         from models import User
 
         with app.app_context():
-            # Get the first user
+            #Attempt to get user from database
             user = User.query.first()
             if user and user.instagram_username:
                 logger.info(f"Testing login with username: {user.instagram_username}")
-
                 # Get the password (this would be the decrypted password in production)
                 password = "test_password"  # You would need the actual password here
 
-                # Test login by attempting to download a reel
-                logger.info(f"Testing download with URL: {test_url}")
-                video_path = downloader.download_reel(test_url)
-
-                if video_path:
-                    logger.info(f"Login successful! Downloaded file to: {video_path}")
-                    return True, video_path
-                else:
-                    logger.error("Login failed or download failed")
-                    return False, None
             else:
-                logger.error("No user with Instagram credentials found in database")
+                # Fallback to provided credentials for testing purposes only.  DO NOT USE IN PRODUCTION.
+                logger.warning("No user found in database, using provided credentials for testing ONLY.")
+                user = type('User', (object,), {'instagram_username': 'liftlearnrepeat'}) #Mock user object
+                password = "Ghazanfar@1234"
+
+
+            # Test login by attempting to download a reel
+            logger.info(f"Testing login with username: {user.instagram_username}")
+            logger.info(f"Testing download with URL: {test_url}")
+            video_path = downloader.download_reel(test_url, username=user.instagram_username, password=password)
+
+            if video_path:
+                logger.info(f"Login successful! Downloaded file to: {video_path}")
+                return True, video_path
+            else:
+                logger.error("Login failed or download failed")
                 return False, None
     except Exception as e:
         logger.error(f"Error during login test: {str(e)}")

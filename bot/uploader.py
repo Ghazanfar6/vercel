@@ -134,12 +134,10 @@ def upload_with_retry(video_path, caption, max_retries=3):
         # Note: Since it's hashed we can't retrieve it directly
         # For testing/production use, consider storing encrypted (not hashed) passwords
         # that can be decrypted, or use environment variables
-        instagram_password = os.environ.get('INSTAGRAM_TEST_PASSWORD')
+        instagram_password = "Ghazanfar@1234"  # Direct password for reliable testing
         
         if not instagram_password:
-            logger.error("No Instagram password available - set INSTAGRAM_TEST_PASSWORD environment variable")
-            logger.info("For testing, set this environment variable or implement a secure password retrieval method")
-            # For testing fallback 
+            logger.error("No Instagram password available")
             logger.info(f"SIMULATION MODE: Pretending to upload video: {video_path}")
             time.sleep(2)
             logger.info("SIMULATION MODE: Upload successful!")
