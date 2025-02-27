@@ -1,9 +1,8 @@
-from moviepy.editor import VideoFileClip, CompositeVideoClip, ImageClip
-from PIL import ImageEnhance, Image
-import numpy as np
-import cv2
 import os
-from config import PROCESSED_VIDEO_DIR
+from PIL import Image, ImageEnhance
+import logging
+
+logger = logging.getLogger(__name__)
 
 def upscale_and_smooth(frame, target_size=(1080, 1920)):
     """Upscales, smooths, and enhances video frames."""
@@ -27,43 +26,20 @@ def apply_hdr_effect(frame):
     return np.array(image)
 
 def process_video(input_video_path, logo_path=None):
+    """
+    Simplified version that just returns the input path.
+    This allows the application to start while we work on video processing.
+    """
     try:
-        # Define the output path for the processed video
-        bordered_video_path = os.path.join(PROCESSED_VIDEO_DIR, 'bordered_processed_video.mp4')
-        final_video_path = os.path.join(PROCESSED_VIDEO_DIR, 'processed_video.mp4')
-        
-        with VideoFileClip(input_video_path) as video:
-            # Add HDR effect and process frames
-            def process_frame(frame):
-                frame = upscale_and_smooth(frame)
-                frame = apply_hdr_effect(frame)
-                return frame
+        logger.info(f"Processing video: {input_video_path}")
+        if not os.path.exists(input_video_path):
+            logger.error(f"Input video not found: {input_video_path}")
+            return None
 
-            # Process video
-            processed_video = video.fl_image(process_frame)
+        # For now, just return the input path
+        # We'll implement full video processing once basic functionality is working
+        return input_video_path
 
-            # Add logo if provided
-            if logo_path:
-                logo = (ImageClip(logo_path)
-                        .set_duration(video.duration)
-                        .resize(height=video.size[1] // 15)  # Resize logo to 6.67% of video height
-                        .set_position(("center", "bottom"))
-                        .set_opacity(0.5))
-                final_video = CompositeVideoClip([processed_video, logo])
-            else:
-                final_video = processed_video
-
-            # Export video with improved quality
-            final_video.write_videofile(
-                final_video_path,
-                codec='libx264',
-                bitrate='10M',
-                fps=60,
-                preset="slow",
-                threads=4
-            )
-        
-        return final_video_path
     except Exception as e:
-        print(f"Error processing video: {e}")
+        logger.error(f"Error processing video: {e}")
         return None
