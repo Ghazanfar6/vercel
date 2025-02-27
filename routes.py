@@ -15,7 +15,7 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         user = User.query.filter_by(username=username).first()
-
+        
         if user and user.check_password(password):
             login_user(user)
             return redirect(url_for('dashboard'))
@@ -41,48 +41,48 @@ def add_reel():
     url = request.form.get('url')
     if not url:
         return jsonify({'error': 'URL is required'}), 400
-
+    
     task = ReelTask(url=url)
     db.session.add(task)
     db.session.commit()
-
+    
     # Start processing in background
     thread = threading.Thread(target=process_reel_task, args=(task.id,))
     thread.start()
-
+    
     return jsonify({'message': 'Task added successfully', 'task_id': task.id})
 
 def process_reel_task(task_id):
     task = ReelTask.query.get(task_id)
     if not task:
         return
-
+    
     try:
         # Download reel
         downloader = InstagramReelDownloader()
         video_path = downloader.download_reel(task.url)
-
+        
         if not video_path:
             raise Exception("Failed to download reel")
-
+            
         # Process video
         processed_video_path = process_video(video_path)
         if not processed_video_path:
             raise Exception("Failed to process video")
-
+            
         # Upload processed video
         caption = "Processed by Instagram Reel Bot"
         if not upload_with_retry(processed_video_path, caption):
             raise Exception("Failed to upload video")
-
+            
         task.status = 'completed'
         task.completed_at = datetime.utcnow()
-
+        
     except Exception as e:
         task.status = 'failed'
         task.error_message = str(e)
         logging.error(f"Task {task_id} failed: {str(e)}")
-
+        
     finally:
         db.session.commit()
 
@@ -96,7 +96,7 @@ def stream_logs():
                 BotLog.id > last_id if last_id else True
             ).order_by(BotLog.id.asc()).all() if last_id else \
                 BotLog.query.order_by(BotLog.id.desc()).limit(50).all()
-
+            
             if logs:
                 last_id = logs[-1].id
                 data = json.dumps([{
@@ -105,7 +105,7 @@ def stream_logs():
                     'message': log.message
                 } for log in logs])
                 yield f"data: {data}\n\n"
-
+            
             time.sleep(1)
-
+    
     return Response(generate(), mimetype='text/event-stream')

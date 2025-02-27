@@ -24,6 +24,8 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# Import routes after app initialization to avoid circular imports
 with app.app_context():
-    import models
-    db.create_all()
+    from routes import *  # This registers all our routes
+    import models  # This ensures our models are loaded
+    db.create_all()  # This creates all database tables
