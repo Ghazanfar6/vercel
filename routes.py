@@ -119,6 +119,9 @@ def process_reel_task(task_id):
             # Update status to processing
             task.status = 'processing'
             db.session.commit()
+            # Force the session to refresh to ensure changes are visible to other connections
+            db.session.flush()
+            
             logger.info(f"Processing task {task_id}: status set to processing")
             
             # Log to visually verify the task status is changing
@@ -167,6 +170,8 @@ def process_reel_task(task_id):
             task.status = 'completed'
             task.completed_at = datetime.utcnow()
             db.session.commit()
+            # Force flush to make sure changes are visible to other connections
+            db.session.flush()
             logger.info(f"Successfully completed task {task_id}: status set to completed")
 
         except Exception as e:

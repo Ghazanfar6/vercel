@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const reelForm = document.getElementById('reelForm');
     const logContainer = document.getElementById('logContainer');
     const tasksList = document.getElementById('tasksList');
-    const clearAllTasksBtn = document.getElementById('clear-all-tasks'); // Added to get the clear all button
+    const clearAllTasksBtn = document.getElementById('clearAllTasksBtn');
 
     // Convert all UTC timestamps to local time
     function convertTimestampsToLocalTime() {
@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function initFeatherIcons() {
         if (typeof feather !== 'undefined') {
             feather.replace();
+        }peof feather !== 'undefined') {
+            feather.replace();
         }
     }
 
@@ -86,6 +88,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    } else {
+        console.error('Clear All Tasks button not found in the DOM');
     }
 
     // Initialize feather icons
