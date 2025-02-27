@@ -65,6 +65,7 @@ def add_reel():
         else:
             scheduled_time = datetime.utcnow()
 
+        # Create new task
         task = ReelTask(
             url=url,
             scheduled_for=scheduled_time,
@@ -73,23 +74,15 @@ def add_reel():
         )
 
         db.session.add(task)
-
-        # Add log entry
-        log = BotLog(
-            level='INFO',
-            message=f'Task created: URL={url}, Scheduled={scheduled_time}, Repeat={repeat_interval}'
-        )
-        db.session.add(log)
         db.session.commit()
 
         logger.info(f"Created new task {task.id} for URL: {url}")
 
-        # Start immediate processing if no specific schedule
+        # Start processing if scheduled for now
         if not scheduled_for:
             thread = threading.Thread(target=process_reel_task, args=(task.id,))
             thread.daemon = True
             thread.start()
-            logger.info(f"Started immediate processing for task {task.id}")
 
         return jsonify({
             'message': 'Task added successfully',
@@ -105,8 +98,6 @@ def add_reel():
 
 def process_reel_task(task_id):
     """Process a single reel task"""
-    logger.info(f"Starting to process task {task_id}")
-
     with app.app_context():
         try:
             task = ReelTask.query.get(task_id)
@@ -116,9 +107,8 @@ def process_reel_task(task_id):
 
             # Update status to processing
             task.status = 'processing'
-            db.session.add(BotLog(level='INFO', message=f'Processing task {task_id}'))
             db.session.commit()
-            logger.info(f"Updated task {task_id} status to processing")
+            logger.info(f"Processing task {task_id}")
 
             # Download reel
             downloader = InstagramReelDownloader()
@@ -126,86 +116,57 @@ def process_reel_task(task_id):
             if not video_path:
                 raise Exception(f"Failed to download reel for task {task_id}")
 
-            logger.info(f"Downloaded video for task {task_id}: {video_path}")
-
-            # Process video
+            # Process video (simplified for now)
             processed_video_path = process_video(video_path)
             if not processed_video_path:
                 raise Exception(f"Failed to process video for task {task_id}")
 
-            logger.info(f"Processed video for task {task_id}: {processed_video_path}")
-
-            # Upload processed video
+            # Upload video
             caption = "Check out this amazing content! #fitness #motivation"
             if not upload_with_retry(processed_video_path, caption):
                 raise Exception(f"Failed to upload video for task {task_id}")
 
-            logger.info(f"Successfully uploaded video for task {task_id}")
-
             # Update task status
             task.status = 'completed'
             task.completed_at = datetime.utcnow()
-
-            # Create next task if repeat interval is set
-            if task.repeat_interval:
-                next_run_time = datetime.utcnow() + timedelta(minutes=task.repeat_interval)
-                next_task = ReelTask(
-                    url=task.url,
-                    scheduled_for=next_run_time,
-                    repeat_interval=task.repeat_interval,
-                    status='pending'
-                )
-                db.session.add(next_task)
-                logger.info(f"Created next scheduled task for {task.url} at {next_run_time}")
-
-            db.session.add(BotLog(level='INFO', message=f'Completed task {task_id}'))
             db.session.commit()
+            logger.info(f"Successfully completed task {task_id}")
 
         except Exception as e:
             logger.error(f"Error processing task {task_id}: {str(e)}")
             if task:
                 task.status = 'failed'
                 task.error_message = str(e)
-                db.session.add(BotLog(level='ERROR', message=f'Task {task_id} failed: {str(e)}'))
                 db.session.commit()
 
 def check_scheduled_tasks():
-    """Background thread to check and process scheduled tasks"""
-    logger.info("Starting scheduled tasks checker")
+    """Check for and process scheduled tasks"""
+    logger.info("Starting scheduled task checker")
 
     while True:
         try:
             with app.app_context():
-                now = datetime.utcnow()
                 # Find pending tasks that are due
+                now = datetime.utcnow()
                 tasks = ReelTask.query.filter(
                     ReelTask.status == 'pending',
                     ReelTask.scheduled_for <= now
                 ).all()
 
-                if tasks:
-                    logger.info(f"Found {len(tasks)} tasks ready for processing")
-                    for task in tasks:
-                        logger.info(f"Processing scheduled task {task.id}")
-                        thread = threading.Thread(target=process_reel_task, args=(task.id,))
-                        thread.daemon = True
-                        thread.start()
+                for task in tasks:
+                    logger.info(f"Found scheduled task {task.id} ready for processing")
+                    thread = threading.Thread(target=process_reel_task, args=(task.id,))
+                    thread.daemon = True
+                    thread.start()
 
         except Exception as e:
-            logger.error(f"Error in scheduled task checker: {str(e)}")
-            try:
-                with app.app_context():
-                    db.session.add(BotLog(level='ERROR', message=f'Scheduler error: {str(e)}'))
-                    db.session.commit()
-            except Exception as inner_e:
-                logger.error(f"Error logging scheduler error: {str(inner_e)}")
+            logger.error(f"Error in task checker: {str(e)}")
 
         time.sleep(15)  # Check every 15 seconds
 
 # Start the scheduler thread
 scheduler_thread = threading.Thread(target=check_scheduled_tasks, daemon=True)
 scheduler_thread.start()
-logger.info("Started scheduler thread")
 
 @app.route('/stream_logs')
 @login_required
