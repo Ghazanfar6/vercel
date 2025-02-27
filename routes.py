@@ -109,3 +109,26 @@ def stream_logs():
             time.sleep(1)
     
     return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        # Check if username already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return redirect(url_for('signup'))
+
+        # Create new user
+        user = User(username=username)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        # Log the user in
+        login_user(user)
+        return redirect(url_for('dashboard'))
+
+    return render_template('signup.html')
