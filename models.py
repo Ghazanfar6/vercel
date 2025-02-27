@@ -12,8 +12,9 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), unique=True, nullable=False)
     password_hash = db.Column(db.String(256))
     is_admin = db.Column(db.Boolean, default=False)
-    instagram_username = db.Column(db.String(64))
-    instagram_password_hash = db.Column(db.String(256))
+    instagram_username = db.Column(db.String(64), nullable=True)
+    instagram_password_hash = db.Column(db.String(256), nullable=True)
+    tasks = db.relationship('ReelTask', backref='user', lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -35,11 +36,11 @@ class ReelTask(db.Model):
     url = db.Column(db.String(500), nullable=False)
     status = db.Column(db.String(50), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    scheduled_for = db.Column(db.DateTime)  # When the reel should be posted
-    completed_at = db.Column(db.DateTime)
-    error_message = db.Column(db.Text)
-    repeat_interval = db.Column(db.Integer)  # Interval in minutes, NULL for no repeat
-    last_check = db.Column(db.DateTime)
+    scheduled_for = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    repeat_interval = db.Column(db.Integer, nullable=True)  # Interval in minutes
+    last_check = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 class BotLog(db.Model):
