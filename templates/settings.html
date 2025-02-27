@@ -9,11 +9,13 @@
                 <form method="POST">
                     <div class="mb-3">
                         <label for="instagram_username" class="form-label">Instagram Username</label>
-                        <input type="text" class="form-control" id="instagram_username" name="instagram_username" required>
+                        <input type="text" class="form-control" id="instagram_username" name="instagram_username" 
+                               value="{{ current_user.instagram_username or '' }}" required>
                     </div>
                     <div class="mb-3">
                         <label for="instagram_password" class="form-label">Instagram Password</label>
                         <input type="password" class="form-control" id="instagram_password" name="instagram_password" required>
+                        <small class="text-muted">Enter your Instagram password to update credentials</small>
                     </div>
                     <button type="submit" class="btn btn-primary">Save Settings</button>
                 </form>
