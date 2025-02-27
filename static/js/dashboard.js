@@ -54,8 +54,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function initFeatherIcons() {
         if (typeof feather !== 'undefined') {
             feather.replace();
-        }peof feather !== 'undefined') {
-            feather.replace();
         }
     }
 
