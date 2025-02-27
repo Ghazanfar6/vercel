@@ -16,7 +16,12 @@
             </a>
             {% if current_user.is_authenticated %}
             <div class="navbar-nav">
-                <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                <a class="nav-link" href="{{ url_for('settings') }}">
+                    <i data-feather="settings"></i> Settings
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i data-feather="log-out"></i> Logout
+                </a>
             </div>
             {% endif %}
         </div>
@@ -30,7 +35,7 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        
+
         {% block content %}{% endblock %}
     </main>
 

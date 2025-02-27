@@ -55,6 +55,10 @@ def add_reel():
         return jsonify({'error': 'URL is required'}), 400
 
     try:
+        # Check if Instagram credentials are set
+        if not current_user.instagram_username:
+            return jsonify({'error': 'Please set your Instagram credentials in Settings'}), 400
+
         # Parse scheduling information
         scheduled_for = request.form.get('scheduled_for')
         repeat_interval = request.form.get('repeat_interval')
@@ -65,12 +69,13 @@ def add_reel():
         else:
             scheduled_time = datetime.utcnow()
 
-        # Create new task
+        # Create new task with user_id
         task = ReelTask(
             url=url,
             scheduled_for=scheduled_time,
             repeat_interval=int(repeat_interval) if repeat_interval else None,
-            status='pending'
+            status='pending',
+            user_id=current_user.id
         )
 
         db.session.add(task)
@@ -105,14 +110,19 @@ def process_reel_task(task_id):
                 logger.error(f"Task {task_id} not found")
                 return
 
+            # Get the user's Instagram credentials
+            user = User.query.get(task.user_id)
+            if not user or not user.instagram_username:
+                raise Exception("Instagram credentials not set")
+
             # Update status to processing
             task.status = 'processing'
             db.session.commit()
             logger.info(f"Processing task {task_id}")
 
-            # Download reel
+            # Download reel using user's credentials
             downloader = InstagramReelDownloader()
-            video_path = downloader.download_reel(task.url)
+            video_path = downloader.download_reel(task.url, user.instagram_username, user.instagram_password)
             if not video_path:
                 raise Exception(f"Failed to download reel for task {task_id}")
 
@@ -210,3 +220,19 @@ def signup():
         return redirect(url_for('dashboard'))
 
     return render_template('signup.html')
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if request.method == 'POST':
+        instagram_username = request.form.get('instagram_username')
+        instagram_password = request.form.get('instagram_password')
+
+        if instagram_username and instagram_password:
+            current_user.instagram_username = instagram_username
+            current_user.set_instagram_password(instagram_password)
+            db.session.commit()
+            flash('Instagram settings updated successfully')
+            return redirect(url_for('dashboard'))
+
+    return render_template('settings.html')
