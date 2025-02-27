@@ -130,37 +130,34 @@ def process_reel_task(task_id):
             # Add a small delay to allow status update to be detected by client
             time.sleep(2)
             
-            # Download reel using user's credentials - for testing just log
+            # Download reel using user's credentials
             logger.info(f"Starting download for task {task_id}")
-            # For testing - comment out real download and use a mock path
-            # downloader = InstagramReelDownloader()
-            # video_path = downloader.download_reel(task.url, user.instagram_username, user.instagram_password)
-            video_path = "test_path.mp4"  # For testing purposes
-            
-            if not video_path:
-                raise Exception(f"Failed to download reel for task {task_id}")
-            
-            logger.info(f"Download completed for task {task_id}")
-            time.sleep(2)  # Small delay for UI updates
-
-            # Process video - for testing just log
-            logger.info(f"Processing video for task {task_id}")
-            # For testing - comment out real processing
-            # processed_video_path = process_video(video_path)
-            processed_video_path = "processed_" + video_path  # For testing purposes
-            
-            if not processed_video_path:
-                raise Exception(f"Failed to process video for task {task_id}")
-            
-            logger.info(f"Video processing completed for task {task_id}")
-            time.sleep(2)  # Small delay for UI updates
-
-            # Upload video - for testing just log
-            logger.info(f"Uploading video for task {task_id}")
-            # For testing - comment out real upload
-            caption = "Check out this amazing content! #fitness #motivation"
-            # if not upload_with_retry(processed_video_path, caption):
-            #     raise Exception(f"Failed to upload video for task {task_id}")
+            try:
+                downloader = InstagramReelDownloader()
+                video_path = downloader.download_reel(task.url, user.instagram_username, user.instagram_password)
+                
+                if not video_path:
+                    raise Exception(f"Failed to download reel for task {task_id}")
+                
+                logger.info(f"Download completed for task {task_id}: {video_path}")
+                
+                # Process video
+                logger.info(f"Processing video for task {task_id}")
+                processed_video_path = process_video(video_path)
+                
+                if not processed_video_path:
+                    raise Exception(f"Failed to process video for task {task_id}")
+                
+                logger.info(f"Video processing completed for task {task_id}: {processed_video_path}")
+                
+                # Upload video
+                logger.info(f"Uploading video for task {task_id}")
+                caption = "Check out this amazing content! #fitness #motivation"
+                if not upload_with_retry(processed_video_path, caption):
+                    raise Exception(f"Failed to upload video for task {task_id}")
+            except Exception as e:
+                logger.error(f"Error in task {task_id} processing: {str(e)}")
+                raise e
             
             logger.info(f"Upload completed for task {task_id}")
 
@@ -267,14 +264,17 @@ def stream_task_updates():
 
                         updates = []
                         for task in tasks:
-                            task_key = f"{task.id}_{task.status}"
-                            if task_key not in processed_task_ids:
-                                processed_task_ids.add(task_key)
-                                updates.append({
-                                    'id': task.id,
-                                    'status': task.status,
-                                    'error_message': task.error_message
-                                })
+                            if task is not None:  # Check if task is not None
+                                task_key = f"{task.id}_{task.status}"
+                                if task_key not in processed_task_ids:
+                                    processed_task_ids.add(task_key)
+                                    updates.append({
+                                        'id': task.id,
+                                        'status': task.status,
+                                        'error_message': task.error_message
+                                    })
+                            else:
+                                logger.warning("Found None task in results, skipping")
 
                         if updates:
                             yield f"data: {json.dumps(updates)}\n\n"
