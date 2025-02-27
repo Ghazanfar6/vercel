@@ -21,62 +21,92 @@ logger = logging.getLogger(__name__)
 class InstagramUploader:
     def __init__(self):
         self.client = Client()
-        
+        # Set sensible timeouts and user agent
+        self.client.request_timeout = 30
+        self.client.user_agent = "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 123.1.0.26.115 (iPhone11,8; iOS 14_8; en_US; en-US; scale=2.00; 828x1792; 190542906)"
+
     def login(self, username, password, use_session=True):
+        """Login to Instagram with session caching"""
         try:
-            session_file = f"session_{username}.pkl"
+            # Create sessions directory if it doesn't exist
+            if not os.path.exists('sessions'):
+                os.makedirs('sessions')
+                
+            session_file = f"sessions/session_{username}.pkl"
+            
             if use_session and os.path.exists(session_file):
-                logger.info(f"Attempting to login with session settings for {username}...")
+                logger.info(f"Attempting to login with cached session for {username}...")
                 with open(session_file, "rb") as f:
-                    settings = pickle.load(f)
-                    self.client.set_settings(settings)
-                    self.client.login(username, password)
-                logger.info("Logged in using session settings")
-                return True
-            else:
-                logger.info(f"Attempting to login with username and password for {username}...")
-                self.client.login(username, password)
-                # Save session for future use
-                with open(session_file, "wb") as f:
-                    pickle.dump(self.client.get_settings(), f)
-                logger.info("Login successful and session settings saved")
-                return True
+                    cached_settings = pickle.load(f)
+                    self.client.set_settings(cached_settings)
+                    
+                # Verify the session is still valid by getting profile info
+                try:
+                    self.client.account_info()
+                    logger.info("Session is valid, login successful")
+                    return True
+                except Exception as e:
+                    logger.warning(f"Cached session invalid, will perform fresh login: {str(e)}")
+                    # Continue to regular login if session is invalid
+            
+            # Regular username/password login
+            logger.info(f"Logging in with username and password for {username}...")
+            self.client.login(username, password)
+            
+            # Save session for future use
+            with open(session_file, "wb") as f:
+                pickle.dump(self.client.get_settings(), f)
+                
+            logger.info("Login successful and session saved")
+            return True
+            
         except Exception as e:
             logger.error(f"Login failed: {str(e)}")
             return False
 
     def upload_reel(self, video_path, caption):
+        """Upload a reel to Instagram with proper error handling"""
         try:
             logger.info(f"Attempting to upload reel: {video_path}")
+            
             if not os.path.exists(video_path):
                 logger.error(f"Video file not found: {video_path}")
                 return False
-                
-            media = self.client.clip_upload(video_path, caption)
+            
+            # Add a small delay to simulate human behavior
+            time.sleep(2)
+            
+            # Upload clip with proper parameters
+            media = self.client.clip_upload(
+                video_path, 
+                caption=caption,
+                extra_data={
+                    "like_and_view_counts_disabled": False,
+                    "disable_comments": False,
+                }
+            )
+            
             if media:
                 logger.info(f"Successfully uploaded reel: {video_path}")
-                logger.info(f"Media ID: {media.id}")
+                logger.info(f"Media ID: {media.id}, Media code: {media.code}")
+                logger.info(f"Media URL: https://www.instagram.com/reel/{media.code}/")
                 return True
             else:
                 logger.error("Upload returned None")
                 return False
+                
         except Exception as e:
             logger.error(f"Failed to upload reel: {str(e)}")
             return False
 
-# Main upload function with retry logic
+# Upload function with retry logic 
 def upload_with_retry(video_path, caption, max_retries=3):
     """Upload with retry mechanism using instagrapi"""
     from app import app
     from models import User
-    from flask import current_app
     import os
     
     with app.app_context():
-        # Get the user credentials from the task's user_id
-        # First try to get the user from the current task
-        user = User.query.first()  # Default fallback
-        
         # Try to determine which task is being processed
         try:
             from routes import current_processing_task_id
@@ -86,45 +116,56 @@ def upload_with_retry(video_path, caption, max_retries=3):
                 if task:
                     user = User.query.get(task.user_id)
                     logger.info(f"Using credentials for task {current_processing_task_id}, user_id: {task.user_id}")
+                else:
+                    logger.warning(f"Task {current_processing_task_id} not found, falling back to first user")
+                    user = User.query.first()
+            else:
+                logger.warning("No current task ID found, falling back to first user")
+                user = User.query.first()
         except (ImportError, NameError):
-            logger.info("Using default user credentials (first user)")
+            logger.warning("Could not import current_processing_task_id, falling back to first user")
+            user = User.query.first()
         
         if not user or not user.instagram_username:
             logger.error("No user with Instagram credentials found")
             return False
-            
-        # Since we can't retrieve the original password due to hashing,
-        # we'll use the password from settings or environment variables
-        # For testing, let's allow setting a test password via environment variable
-        instagram_password = os.environ.get('INSTAGRAM_TEST_PASSWORD', None)
+        
+        # Attempt to decrypt the password if we can access it
+        # Note: Since it's hashed we can't retrieve it directly
+        # For testing/production use, consider storing encrypted (not hashed) passwords
+        # that can be decrypted, or use environment variables
+        instagram_password = os.environ.get('INSTAGRAM_TEST_PASSWORD')
         
         if not instagram_password:
             logger.error("No Instagram password available - set INSTAGRAM_TEST_PASSWORD environment variable")
-            # Simulate successful upload for testing
+            logger.info("For testing, set this environment variable or implement a secure password retrieval method")
+            # For testing fallback 
             logger.info(f"SIMULATION MODE: Pretending to upload video: {video_path}")
-            logger.info(f"SIMULATION MODE: Caption: {caption}")
-            time.sleep(2)  # Simulate upload time
+            time.sleep(2)
             logger.info("SIMULATION MODE: Upload successful!")
             return True
-        
+            
         logger.info(f"Starting upload with user: {user.instagram_username}")
-
-        # Create uploader and login
+        
+        # Create uploader and attempt login/upload with retries
         uploader = InstagramUploader()
         
         for attempt in range(max_retries):
             try:
                 logger.info(f"Upload attempt {attempt + 1}/{max_retries}")
                 
-                # Login first
+                # Login first (with session if available)
                 if not uploader.login(user.instagram_username, instagram_password):
-                    logger.error("Failed to login to Instagram")
+                    logger.error(f"Failed to login to Instagram on attempt {attempt + 1}")
                     if attempt < max_retries - 1:
                         time.sleep(30)  # Wait before retry
                     continue
                 
                 # Then upload
-                if uploader.upload_reel(video_path, caption):
+                current_timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                full_caption = f"{caption}\n\nUploaded at {current_timestamp} #repost"
+                
+                if uploader.upload_reel(video_path, full_caption):
                     logger.info("Upload successful!")
                     return True
                 
@@ -132,8 +173,8 @@ def upload_with_retry(video_path, caption, max_retries=3):
                 logger.error(f"Upload attempt {attempt + 1} failed: {str(e)}")
             
             if attempt < max_retries - 1:
-                logger.info("Waiting 60 seconds before retry...")
-                time.sleep(60)
+                logger.info(f"Waiting {60 * (attempt + 1)} seconds before retry...")
+                time.sleep(60 * (attempt + 1))  # Increasing backoff
         
         logger.error(f"All {max_retries} upload attempts failed")
         return False
