@@ -11,6 +11,16 @@
                         <label for="url" class="form-label">Instagram Reel URL</label>
                         <input type="url" class="form-control" id="url" name="url" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="scheduledFor" class="form-label">Schedule Upload For</label>
+                        <input type="datetime-local" class="form-control" id="scheduledFor" name="scheduledFor">
+                    </div>
+                    <div class="mb-3">
+                        <label for="repeatInterval" class="form-label">Repeat Interval (minutes)</label>
+                        <input type="number" class="form-control" id="repeatInterval" name="repeatInterval" 
+                               min="60" placeholder="Leave empty for no repeat">
+                        <small class="text-muted">Minimum 60 minutes between posts</small>
+                    </div>
                     <button type="submit" class="btn btn-primary">Add Reel</button>
                 </form>
             </div>
@@ -18,13 +28,15 @@
 
         <div class="card mt-4">
             <div class="card-body">
-                <h5 class="card-title">Recent Tasks</h5>
+                <h5 class="card-title">Scheduled Tasks</h5>
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
                                 <th>URL</th>
                                 <th>Status</th>
+                                <th>Scheduled For</th>
+                                <th>Repeat</th>
                                 <th>Created</th>
                             </tr>
                         </thead>
@@ -37,6 +49,8 @@
                                         {{ task.status }}
                                     </span>
                                 </td>
+                                <td>{{ task.scheduled_for.strftime('%Y-%m-%d %H:%M:%S') if task.scheduled_for else 'ASAP' }}</td>
+                                <td>{{ task.repeat_interval if task.repeat_interval else 'No' }}</td>
                                 <td>{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             </tr>
                             {% endfor %}

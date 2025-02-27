@@ -24,8 +24,12 @@ class ReelTask(db.Model):
     url = db.Column(db.String(500), nullable=False)
     status = db.Column(db.String(50), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    scheduled_for = db.Column(db.DateTime)  # When the reel should be posted
     completed_at = db.Column(db.DateTime)
     error_message = db.Column(db.Text)
+    # New fields for scheduling options
+    repeat_interval = db.Column(db.Integer)  # Interval in minutes, NULL for no repeat
+    last_check = db.Column(db.DateTime)
 
 class BotLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -3,30 +3,51 @@ document.addEventListener('DOMContentLoaded', function() {
     const logContainer = document.getElementById('logContainer');
     const tasksList = document.getElementById('tasksList');
 
+    // Set minimum datetime-local to current time
+    const scheduledForInput = document.getElementById('scheduledFor');
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    scheduledForInput.min = now.toISOString().slice(0, 16);
+
     // Handle form submission
     reelForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const urlInput = document.getElementById('url');
-        
+        const scheduledForInput = document.getElementById('scheduledFor');
+        const repeatIntervalInput = document.getElementById('repeatInterval');
+
+        const formData = new FormData();
+        formData.append('url', urlInput.value);
+        if (scheduledForInput.value) {
+            formData.append('scheduled_for', scheduledForInput.value);
+        }
+        if (repeatIntervalInput.value) {
+            formData.append('repeat_interval', repeatIntervalInput.value);
+        }
+
         try {
             const response = await fetch('/add_reel', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `url=${encodeURIComponent(urlInput.value)}`
+                body: formData
             });
-            
+
             const data = await response.json();
-            
+
             if (response.ok) {
+                // Clear form
                 urlInput.value = '';
+                scheduledForInput.value = '';
+                repeatIntervalInput.value = '';
+
                 // Add new task to the list
+                const scheduledTime = data.scheduled_for ? new Date(data.scheduled_for).toLocaleString() : 'ASAP';
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${urlInput.value}</td>
+                    <td>${data.url}</td>
                     <td><span class="badge bg-warning">pending</span></td>
-                    <td>${new Date().toISOString().slice(0, 19).replace('T', ' ')}</td>
+                    <td>${scheduledTime}</td>
+                    <td>${data.repeat_interval || 'No'}</td>
+                    <td>${new Date().toLocaleString()}</td>
                 `;
                 tasksList.insertBefore(row, tasksList.firstChild);
             } else {
@@ -51,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="log-message">${log.message}</span>
             `;
             logContainer.insertBefore(logEntry, logContainer.firstChild);
-            
+
             // Keep only the last 50 logs
             if (logContainer.children.length > 50) {
                 logContainer.removeChild(logContainer.lastChild);
