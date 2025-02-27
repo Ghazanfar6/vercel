@@ -15,6 +15,5 @@
   "env": {
     "FLASK_APP": "app.py",
     "DATABASE_URL": "postgres://neondb_owner:npg_n9OBl5LhmrTH@ep-rapid-dust-a5llxmho-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require"
-  },
-  "notes": "Please configure the DATABASE_URL environment variable in Vercel's project settings. Consider using Vercel Postgres or another external PostgreSQL database. Note: While the DATABASE_URL is included here, it is recommended to set it as an environment variable in Vercel's project settings for security reasons."
+  }
 }
