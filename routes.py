@@ -214,26 +214,31 @@ def stream_task_updates():
         while True:
             with app.app_context():
                 try:
-                    # Get tasks with status changes (processing, completed, failed)
-                    tasks = ReelTask.query.filter(
-                        ReelTask.user_id == current_user.id,
-                        ReelTask.status.in_(['processing', 'completed', 'failed'])
-                    ).all()
-                    
-                    updates = []
-                    for task in tasks:
-                        task_key = f"{task.id}_{task.status}"
-                        if task_key not in processed_task_ids:
-                            processed_task_ids.add(task_key)
-                            updates.append({
-                                'id': task.id,
-                                'status': task.status,
-                                'error_message': task.error_message
-                            })
-                    
-                    if updates:
-                        yield f"data: {json.dumps(updates)}\n\n"
-                        
+                    # Verify current_user is not None before querying
+                    if current_user and current_user.is_authenticated:
+                        # Get tasks with status changes (processing, completed, failed)
+                        tasks = ReelTask.query.filter(
+                            ReelTask.user_id == current_user.id,
+                            ReelTask.status.in_(['processing', 'completed', 'failed'])
+                        ).all()
+
+                        updates = []
+                        for task in tasks:
+                            task_key = f"{task.id}_{task.status}"
+                            if task_key not in processed_task_ids:
+                                processed_task_ids.add(task_key)
+                                updates.append({
+                                    'id': task.id,
+                                    'status': task.status,
+                                    'error_message': task.error_message
+                                })
+
+                        if updates:
+                            yield f"data: {json.dumps(updates)}\n\n"
+                    else:
+                        # If user not authenticated, just sleep and continue
+                        pass
+
                 except Exception as e:
                     logger.error(f"Error in stream_task_updates: {str(e)}")
             time.sleep(2)
@@ -264,11 +269,11 @@ def signup():
 @login_required
 def delete_task(task_id):
     task = ReelTask.query.get_or_404(task_id)
-    
+
     # Check if the task belongs to the current user
     if task.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     try:
         db.session.delete(task)
         db.session.commit()
