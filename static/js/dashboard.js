@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Delete task functionality
     function setupDeleteButtons() {
         const deleteButtons = document.querySelectorAll('.delete-task');
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 'Content-Type': 'application/json'
                             }
                         });
-                        
+
                         const data = await response.json();
                         if (response.ok) {
                             // Remove the task row from the table
@@ -48,27 +48,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
+
     // Initialize feather icons for the delete buttons
     function initFeatherIcons() {
         if (typeof feather !== 'undefined') {
             feather.replace();
         }
     }
-    
+
     // Convert timestamps on page load
     convertTimestampsToLocalTime();
-    
+
     // Setup delete buttons
     setupDeleteButtons();
-    
+
     // Initialize feather icons
     initFeatherIcons();
-    
-    // Connect to task status updates stream
+
+    // Connect to task status updates stream with auto-reconnect
+    let taskUpdateSource;
+
     function connectToTaskUpdates() {
-        const taskUpdateSource = new EventSource('/stream_task_updates');
-        
+        taskUpdateSource = new EventSource('/stream_task_updates');
+
         taskUpdateSource.onmessage = function(event) {
             const updates = JSON.parse(event.data);
             updates.forEach(update => {
@@ -83,13 +85,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         };
-        
+
         taskUpdateSource.onerror = function() {
             taskUpdateSource.close();
             setTimeout(connectToTaskUpdates, 5000); // Try to reconnect after 5 seconds
         };
     }
-    
+
     // Connect to task updates
     connectToTaskUpdates();
 
@@ -147,12 +149,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     </td>
                 `;
                 tasksList.insertBefore(row, tasksList.firstChild);
-                
+
                 // Initialize feather icons for the new row
                 if (typeof feather !== 'undefined') {
                     feather.replace();
                 }
-                
+
                 // Setup delete button for the new row
                 const newDeleteButton = row.querySelector('.delete-task');
                 if (newDeleteButton) {
@@ -166,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         'Content-Type': 'application/json'
                                     }
                                 });
-                                
+
                                 const data = await response.json();
                                 if (response.ok) {
                                     // Remove the task row from the table
@@ -190,24 +192,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Setup SSE for live logs
-    const evtSource = new EventSource('/stream_logs');
-    evtSource.onmessage = function(event) {
-        const logs = JSON.parse(event.data);
-        logs.forEach(log => {
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
-            logEntry.innerHTML = `
-                <span class="log-timestamp">${log.timestamp}</span>
-                <span class="log-level log-level-${log.level.toLowerCase()}">${log.level}</span>
-                <span class="log-message">${log.message}</span>
-            `;
-            logContainer.insertBefore(logEntry, logContainer.firstChild);
+    // Setup SSE for live logs with auto-reconnect
+    let evtSource;
 
-            // Keep only the last 50 logs
-            if (logContainer.children.length > 50) {
-                logContainer.removeChild(logContainer.lastChild);
-            }
-        });
-    };
+    function connectToLogStream() {
+        evtSource = new EventSource('/stream_logs');
+        evtSource.onmessage = function(event) {
+            const logs = JSON.parse(event.data);
+            logs.forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `
+                    <span class="log-timestamp">${log.timestamp}</span>
+                    <span class="log-level log-level-${log.level.toLowerCase()}">${log.level}</span>
+                    <span class="log-message">${log.message}</span>
+                `;
+                logContainer.insertBefore(logEntry, logContainer.firstChild);
+
+                // Keep only the last 50 logs
+                if (logContainer.children.length > 50) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
+            });
+        };
+        evtSource.onerror = function() {
+            evtSource.close();
+            setTimeout(connectToLogStream, 5000); // Try to reconnect after 5 seconds
+        };
+    }
+
+    connectToLogStream();
 });

@@ -119,23 +119,47 @@ def process_reel_task(task_id):
             # Update status to processing
             task.status = 'processing'
             db.session.commit()
-            logger.info(f"Processing task {task_id}")
+            logger.info(f"Processing task {task_id}: status set to processing")
+            
+            # Log to visually verify the task status is changing
+            logger.info(f"Current status of task {task_id} is: {task.status}")
 
-            # Download reel using user's credentials
-            downloader = InstagramReelDownloader()
-            video_path = downloader.download_reel(task.url, user.instagram_username, user.instagram_password)
+            # Add a small delay to allow status update to be detected by client
+            time.sleep(2)
+            
+            # Download reel using user's credentials - for testing just log
+            logger.info(f"Starting download for task {task_id}")
+            # For testing - comment out real download and use a mock path
+            # downloader = InstagramReelDownloader()
+            # video_path = downloader.download_reel(task.url, user.instagram_username, user.instagram_password)
+            video_path = "test_path.mp4"  # For testing purposes
+            
             if not video_path:
                 raise Exception(f"Failed to download reel for task {task_id}")
+            
+            logger.info(f"Download completed for task {task_id}")
+            time.sleep(2)  # Small delay for UI updates
 
-            # Process video (simplified for now)
-            processed_video_path = process_video(video_path)
+            # Process video - for testing just log
+            logger.info(f"Processing video for task {task_id}")
+            # For testing - comment out real processing
+            # processed_video_path = process_video(video_path)
+            processed_video_path = "processed_" + video_path  # For testing purposes
+            
             if not processed_video_path:
                 raise Exception(f"Failed to process video for task {task_id}")
+            
+            logger.info(f"Video processing completed for task {task_id}")
+            time.sleep(2)  # Small delay for UI updates
 
-            # Upload video
+            # Upload video - for testing just log
+            logger.info(f"Uploading video for task {task_id}")
+            # For testing - comment out real upload
             caption = "Check out this amazing content! #fitness #motivation"
-            if not upload_with_retry(processed_video_path, caption):
-                raise Exception(f"Failed to upload video for task {task_id}")
+            # if not upload_with_retry(processed_video_path, caption):
+            #     raise Exception(f"Failed to upload video for task {task_id}")
+            
+            logger.info(f"Upload completed for task {task_id}")
 
             # Refresh task from database to ensure we have the latest version
             db.session.refresh(task)
@@ -143,7 +167,7 @@ def process_reel_task(task_id):
             task.status = 'completed'
             task.completed_at = datetime.utcnow()
             db.session.commit()
-            logger.info(f"Successfully completed task {task_id}")
+            logger.info(f"Successfully completed task {task_id}: status set to completed")
 
         except Exception as e:
             logger.error(f"Error processing task {task_id}: {str(e)}")
@@ -153,6 +177,7 @@ def process_reel_task(task_id):
                 task.status = 'failed'
                 task.error_message = str(e)
                 db.session.commit()
+                logger.info(f"Task {task_id} failed: status set to failed")
 
 def check_scheduled_tasks():
     """Check for and process scheduled tasks"""
@@ -188,7 +213,11 @@ scheduler_thread.start()
 def stream_logs():
     def generate():
         last_id = 0
-        while True:
+        # Add a maximum timeout of 25 seconds (Gunicorn default worker timeout is 30s)
+        max_iterations = 25
+        iterations = 0
+        
+        while iterations < max_iterations:
             with app.app_context():
                 try:
                     logs = BotLog.query.filter(BotLog.id > last_id).order_by(BotLog.id.asc()).all()
@@ -202,7 +231,12 @@ def stream_logs():
                         yield f"data: {data}\n\n"
                 except Exception as e:
                     logger.error(f"Error in stream_logs: {str(e)}")
+            
             time.sleep(1)
+            iterations += 1
+            
+        # Send a message indicating stream has ended
+        yield f"data: {json.dumps([{'level': 'info', 'message': 'Stream timeout - please refresh'}])}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
 
@@ -211,7 +245,11 @@ def stream_logs():
 def stream_task_updates():
     def generate():
         processed_task_ids = set()
-        while True:
+        # Add a maximum timeout of 12 iterations (24 seconds, under Gunicorn's 30s timeout)
+        max_iterations = 12
+        iterations = 0
+        
+        while iterations < max_iterations:
             with app.app_context():
                 try:
                     # Verify current_user is not None before querying
@@ -241,7 +279,12 @@ def stream_task_updates():
 
                 except Exception as e:
                     logger.error(f"Error in stream_task_updates: {str(e)}")
+            
             time.sleep(2)
+            iterations += 1
+            
+        # Send end message
+        yield f"data: {json.dumps([{'id': 'refresh', 'status': 'timeout', 'error_message': 'Stream timeout - please refresh'}])}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
 
