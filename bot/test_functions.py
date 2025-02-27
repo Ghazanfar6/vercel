@@ -17,8 +17,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import our bot modules
-from scraper import InstagramReelDownloader
-from uploader import upload_with_retry
+from bot.scraper import InstagramReelDownloader
+from bot.uploader import upload_with_retry
 
 def test_instagram_login():
     """Test if we can login to Instagram"""
@@ -43,7 +43,7 @@ def test_instagram_login():
                 
                 # Test login by attempting to download a reel
                 logger.info(f"Testing download with URL: {test_url}")
-                video_path = downloader.download_reel(test_url, user.instagram_username, password)
+                video_path = downloader.download_reel(test_url)
                 
                 if video_path:
                     logger.info(f"Login successful! Downloaded file to: {video_path}")
@@ -66,7 +66,7 @@ def test_video_processing(video_path):
             logger.error(f"Video file not found: {video_path}")
             return False, None
             
-        from bot import process_video
+        from bot.video_processor import process_video
         
         processed_path = process_video(video_path)
         if processed_path:
