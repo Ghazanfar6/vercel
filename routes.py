@@ -101,14 +101,23 @@ def add_reel():
         logger.error(f"Error adding reel task: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Global variable to track which task is currently being processed
+current_processing_task_id = None
+
 def process_reel_task(task_id):
     """Process a single reel task"""
+    global current_processing_task_id
+    
     with app.app_context():
         task = None
         try:
+            # Set the current processing task
+            current_processing_task_id = task_id
+            
             task = ReelTask.query.get(task_id)
             if not task:
                 logger.error(f"Task {task_id} not found")
+                current_processing_task_id = None
                 return
 
             # Get the user's Instagram credentials
@@ -170,6 +179,8 @@ def process_reel_task(task_id):
             # Force flush to make sure changes are visible to other connections
             db.session.flush()
             logger.info(f"Successfully completed task {task_id}: status set to completed")
+            # Clear the current processing task
+            current_processing_task_id = None
 
         except Exception as e:
             logger.error(f"Error processing task {task_id}: {str(e)}")
@@ -180,6 +191,8 @@ def process_reel_task(task_id):
                 task.error_message = str(e)
                 db.session.commit()
                 logger.info(f"Task {task_id} failed: status set to failed")
+            # Clear the current processing task
+            current_processing_task_id = None
 
 def check_scheduled_tasks():
     """Check for and process scheduled tasks"""
