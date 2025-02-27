@@ -232,7 +232,10 @@ def settings():
             current_user.instagram_username = instagram_username
             current_user.set_instagram_password(instagram_password)
             db.session.commit()
+            logger.info(f"Instagram credentials updated for user: {current_user.username}")
             flash('Instagram settings updated successfully')
             return redirect(url_for('dashboard'))
+        else:
+            flash('Both Instagram username and password are required')
 
     return render_template('settings.html')

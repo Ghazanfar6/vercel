@@ -28,3 +28,20 @@ def generate_caption():
 #fitness #motivation #gym #workout #fitnessmotivation #training #health 
 #fit #lifestyle #sport #healthy #gymlife #fitfam #bodybuilding #exercise
 #wellness #crossfit #personaltrainer #strong #weightloss #muscle"""
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+load_dotenv()
+
+# Instagram credentials
+INSTAGRAM_USERNAME = os.environ.get('INSTAGRAM_USERNAME', '')
+INSTAGRAM_PASSWORD = os.environ.get('INSTAGRAM_PASSWORD', '')
+
+# Directory settings
+DOWNLOAD_DIR = "downloads"
+PROCESSED_DIR = "processed_videos"
+
+# General settings
+MAX_RETRIES = 3
+DEBUG = True
