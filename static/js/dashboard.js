@@ -15,8 +15,83 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Delete task functionality
+    function setupDeleteButtons() {
+        const deleteButtons = document.querySelectorAll('.delete-task');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', async function() {
+                const taskId = this.getAttribute('data-task-id');
+                if (confirm('Are you sure you want to delete this task?')) {
+                    try {
+                        const response = await fetch(`/delete_task/${taskId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        if (response.ok) {
+                            // Remove the task row from the table
+                            const row = document.querySelector(`tr[data-task-id="${taskId}"]`);
+                            if (row) {
+                                row.remove();
+                            }
+                        } else {
+                            alert(`Error: ${data.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                        alert('An error occurred while deleting the task.');
+                    }
+                }
+            });
+        });
+    }
+    
+    // Initialize feather icons for the delete buttons
+    function initFeatherIcons() {
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    }
+    
     // Convert timestamps on page load
     convertTimestampsToLocalTime();
+    
+    // Setup delete buttons
+    setupDeleteButtons();
+    
+    // Initialize feather icons
+    initFeatherIcons();
+    
+    // Connect to task status updates stream
+    function connectToTaskUpdates() {
+        const taskUpdateSource = new EventSource('/stream_task_updates');
+        
+        taskUpdateSource.onmessage = function(event) {
+            const updates = JSON.parse(event.data);
+            updates.forEach(update => {
+                const taskRow = document.querySelector(`tr[data-task-id="${update.id}"]`);
+                if (taskRow) {
+                    const statusCell = taskRow.querySelector('td:nth-child(2)');
+                    if (statusCell) {
+                        const badgeClass = update.status === 'completed' ? 'success' : 
+                                          update.status === 'failed' ? 'danger' : 'warning';
+                        statusCell.innerHTML = `<span class="badge bg-${badgeClass}">${update.status}</span>`;
+                    }
+                }
+            });
+        };
+        
+        taskUpdateSource.onerror = function() {
+            taskUpdateSource.close();
+            setTimeout(connectToTaskUpdates, 5000); // Try to reconnect after 5 seconds
+        };
+    }
+    
+    // Connect to task updates
+    connectToTaskUpdates();
 
     // Set minimum datetime-local to current time
     const scheduledForInput = document.getElementById('scheduledFor');
@@ -58,14 +133,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 const scheduledTime = data.scheduled_for ? new Date(data.scheduled_for).toLocaleString() : 'ASAP';
                 const currentTime = new Date();
                 const row = document.createElement('tr');
+                row.setAttribute('data-task-id', data.task_id);
                 row.innerHTML = `
                     <td>${data.url}</td>
                     <td><span class="badge bg-warning">pending</span></td>
                     <td>${scheduledTime}</td>
                     <td>${data.repeat_interval || 'No'}</td>
                     <td class="created-time" data-timestamp="${currentTime.toISOString()}">${currentTime.toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger delete-task" data-task-id="${data.task_id}">
+                            <i data-feather="trash-2"></i> Delete
+                        </button>
+                    </td>
                 `;
                 tasksList.insertBefore(row, tasksList.firstChild);
+                
+                // Initialize feather icons for the new row
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+                
+                // Setup delete button for the new row
+                const newDeleteButton = row.querySelector('.delete-task');
+                if (newDeleteButton) {
+                    newDeleteButton.addEventListener('click', async function() {
+                        const taskId = this.getAttribute('data-task-id');
+                        if (confirm('Are you sure you want to delete this task?')) {
+                            try {
+                                const response = await fetch(`/delete_task/${taskId}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                
+                                const data = await response.json();
+                                if (response.ok) {
+                                    // Remove the task row from the table
+                                    row.remove();
+                                } else {
+                                    alert(`Error: ${data.error}`);
+                                }
+                            } catch (error) {
+                                console.error('Error deleting task:', error);
+                                alert('An error occurred while deleting the task.');
+                            }
+                        }
+                    });
+                }
             } else {
                 alert(data.error || 'Failed to add reel');
             }

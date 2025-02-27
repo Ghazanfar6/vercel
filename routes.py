@@ -104,6 +104,7 @@ def add_reel():
 def process_reel_task(task_id):
     """Process a single reel task"""
     with app.app_context():
+        task = None
         try:
             task = ReelTask.query.get(task_id)
             if not task:
@@ -136,6 +137,8 @@ def process_reel_task(task_id):
             if not upload_with_retry(processed_video_path, caption):
                 raise Exception(f"Failed to upload video for task {task_id}")
 
+            # Refresh task from database to ensure we have the latest version
+            db.session.refresh(task)
             # Update task status
             task.status = 'completed'
             task.completed_at = datetime.utcnow()
@@ -145,6 +148,8 @@ def process_reel_task(task_id):
         except Exception as e:
             logger.error(f"Error processing task {task_id}: {str(e)}")
             if task:
+                # Refresh task from database to ensure we have the latest version
+                db.session.refresh(task)
                 task.status = 'failed'
                 task.error_message = str(e)
                 db.session.commit()
@@ -201,6 +206,40 @@ def stream_logs():
 
     return Response(generate(), mimetype='text/event-stream')
 
+@app.route('/stream_task_updates')
+@login_required
+def stream_task_updates():
+    def generate():
+        processed_task_ids = set()
+        while True:
+            with app.app_context():
+                try:
+                    # Get tasks with status changes (processing, completed, failed)
+                    tasks = ReelTask.query.filter(
+                        ReelTask.user_id == current_user.id,
+                        ReelTask.status.in_(['processing', 'completed', 'failed'])
+                    ).all()
+                    
+                    updates = []
+                    for task in tasks:
+                        task_key = f"{task.id}_{task.status}"
+                        if task_key not in processed_task_ids:
+                            processed_task_ids.add(task_key)
+                            updates.append({
+                                'id': task.id,
+                                'status': task.status,
+                                'error_message': task.error_message
+                            })
+                    
+                    if updates:
+                        yield f"data: {json.dumps(updates)}\n\n"
+                        
+                except Exception as e:
+                    logger.error(f"Error in stream_task_updates: {str(e)}")
+            time.sleep(2)
+
+    return Response(generate(), mimetype='text/event-stream')
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -220,6 +259,24 @@ def signup():
         return redirect(url_for('dashboard'))
 
     return render_template('signup.html')
+
+@app.route('/delete_task/<int:task_id>', methods=['POST'])
+@login_required
+def delete_task(task_id):
+    task = ReelTask.query.get_or_404(task_id)
+    
+    # Check if the task belongs to the current user
+    if task.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        logger.info(f"Task {task_id} deleted by user {current_user.username}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error deleting task {task_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
