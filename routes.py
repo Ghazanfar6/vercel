@@ -326,6 +326,24 @@ def delete_task(task_id):
         logger.error(f"Error deleting task {task_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/clear_all_tasks', methods=['POST'])
+@login_required
+def clear_all_tasks():
+    try:
+        # Delete all tasks belonging to the current user
+        tasks = ReelTask.query.filter_by(user_id=current_user.id).all()
+        count = len(tasks)
+        
+        for task in tasks:
+            db.session.delete(task)
+        
+        db.session.commit()
+        logger.info(f"All tasks ({count}) cleared by user {current_user.username}")
+        return jsonify({'success': True, 'count': count})
+    except Exception as e:
+        logger.error(f"Error clearing all tasks: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():

@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const reelForm = document.getElementById('reelForm');
     const logContainer = document.getElementById('logContainer');
     const tasksList = document.getElementById('tasksList');
+    const clearAllTasksBtn = document.getElementById('clear-all-tasks'); // Added to get the clear all button
 
     // Convert all UTC timestamps to local time
     function convertTimestampsToLocalTime() {
@@ -56,11 +57,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Convert timestamps on page load
+    // Initial load of timestamps
     convertTimestampsToLocalTime();
 
-    // Setup delete buttons
+    // Set up event listeners
     setupDeleteButtons();
+
+    // Clear All Tasks functionality
+    if (clearAllTasksBtn) {
+        clearAllTasksBtn.addEventListener('click', async function() {
+            if (confirm('Are you sure you want to delete ALL tasks? This cannot be undone.')) {
+                try {
+                    const response = await fetch('/clear_all_tasks', {
+                        method: 'POST',
+                    });
+
+                    const data = await response.json();
+                    if (response.ok) {
+                        // Remove all task rows from the table
+                        tasksList.innerHTML = '';
+                        alert(`Successfully cleared ${data.count} tasks.`);
+                    } else {
+                        alert(`Error: ${data.error || 'Failed to clear tasks'}`);
+                    }
+                } catch (error) {
+                    console.error('Error clearing tasks:', error);
+                    alert('An error occurred while clearing tasks.');
+                }
+            }
+        });
+    }
 
     // Initialize feather icons
     initFeatherIcons();
