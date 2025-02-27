@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Add New Reel</h5>
+                <form id="reelForm" class="mt-3">
+                    <div class="mb-3">
+                        <label for="url" class="form-label">Instagram Reel URL</label>
+                        <input type="url" class="form-control" id="url" name="url" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Reel</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">Recent Tasks</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksList">
+                            {% for task in tasks %}
+                            <tr>
+                                <td>{{ task.url }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if task.status == 'completed' else 'danger' if task.status == 'failed' else 'warning' }}">
+                                        {{ task.status }}
+                                    </span>
+                                </td>
+                                <td>{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Live Logs</h5>
+                <div id="logContainer" class="log-container">
+                    {% for log in logs %}
+                    <div class="log-entry">
+                        <span class="log-timestamp">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                        <span class="log-level log-level-{{ log.level.lower() }}">{{ log.level }}</span>
+                        <span class="log-message">{{ log.message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
