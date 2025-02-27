@@ -3,6 +3,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const logContainer = document.getElementById('logContainer');
     const tasksList = document.getElementById('tasksList');
 
+    // Convert all UTC timestamps to local time
+    function convertTimestampsToLocalTime() {
+        const timestampElements = document.querySelectorAll('.created-time');
+        timestampElements.forEach(element => {
+            const utcTimestamp = element.getAttribute('data-timestamp');
+            if (utcTimestamp) {
+                const localDate = new Date(utcTimestamp);
+                element.textContent = localDate.toLocaleString();
+            }
+        });
+    }
+    
+    // Convert timestamps on page load
+    convertTimestampsToLocalTime();
+
     // Set minimum datetime-local to current time
     const scheduledForInput = document.getElementById('scheduledFor');
     const now = new Date();
@@ -41,13 +56,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Add new task to the list
                 const scheduledTime = data.scheduled_for ? new Date(data.scheduled_for).toLocaleString() : 'ASAP';
+                const currentTime = new Date();
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${data.url}</td>
                     <td><span class="badge bg-warning">pending</span></td>
                     <td>${scheduledTime}</td>
                     <td>${data.repeat_interval || 'No'}</td>
-                    <td>${new Date().toLocaleString()}</td>
+                    <td class="created-time" data-timestamp="${currentTime.toISOString()}">${currentTime.toLocaleString()}</td>
                 `;
                 tasksList.insertBefore(row, tasksList.firstChild);
             } else {

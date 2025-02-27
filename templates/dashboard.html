@@ -51,7 +51,7 @@
                                 </td>
                                 <td>{{ task.scheduled_for.strftime('%Y-%m-%d %H:%M:%S') if task.scheduled_for else 'ASAP' }}</td>
                                 <td>{{ task.repeat_interval if task.repeat_interval else 'No' }}</td>
-                                <td>{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td class="created-time" data-timestamp="{{ task.created_at.isoformat() }}">{{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
